@@ -30,6 +30,24 @@ export function useSession() {
         setState({ status: "onboard", hasAuthUser: false });
         return;
       }
+      // ตรวจว่า user ยังมีอยู่จริงในระบบ (เคส session ค้างของ user ที่ถูกลบไป เช่นการล้างฐานข้อมูล)
+      // getUser() ตรวจกับ server — user ตายจะ error → ล้าง session แล้วกลับไปหน้า login
+      const { data: userData, error: userError } = await sb.auth.getUser();
+      if (userError || !userData?.user) {
+        try {
+          await sb.auth.signOut();
+        } catch {
+          /* ignore */
+        }
+        setState({ status: "onboard", hasAuthUser: false });
+        return;
+      }
+      // บัญชี anonymous รุ่นเก่าถูกยกเลิก — ออกจาก session แล้วให้ login ด้วย LINE
+      if ((session.user as { is_anonymous?: boolean }).is_anonymous === true) {
+        await sb.auth.signOut();
+        setState({ status: "onboard", hasAuthUser: false });
+        return;
+      }
       const { data: profile, error: profileError } = await sb
         .from("profiles")
         .select("*")

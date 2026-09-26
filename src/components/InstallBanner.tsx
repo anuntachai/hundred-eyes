@@ -11,7 +11,7 @@ import { EyeLogo } from "./EyeLogo";
 // ติดตั้งแล้ว (standalone) หรือกดปิดไปแล้ว → ไม่แสดงอีก
 export function InstallBanner() {
   const { t } = useT();
-  const { canInstall, promptInstall, isIOS, standalone } = useInstallPrompt();
+  const { canInstall, promptInstall, isIOS, standalone, inAppBrowser } = useInstallPrompt();
   // เริ่มด้วย dismissed เพื่อกัน hydration mismatch แล้วค่อยเปิดใน effect
   const [dismissed, setDismissed] = useState(true);
 
@@ -23,7 +23,19 @@ export function InstallBanner() {
     }
   }, []);
 
-  if (dismissed || standalone || (!canInstall && !isIOS)) return null;
+  if (dismissed || standalone || (!canInstall && !isIOS && !inAppBrowser)) return null;
+
+  async function handleInstall() {
+    const outcome = await promptInstall();
+    if (outcome === "accepted") {
+      setDismissed(true);
+      try {
+        window.localStorage.setItem(INSTALL_BANNER_DISMISSED_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 
   function dismiss() {
     setDismissed(true);
@@ -41,10 +53,12 @@ export function InstallBanner() {
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{t("install.bannerTitle")}</p>
           <p className="mt-0.5 text-sm">{t("install.bannerBody")}</p>
-          {canInstall ? (
+          {inAppBrowser && !canInstall ? (
+            <p className="mt-2 text-sm font-medium">{t("install.openInBrowser")}</p>
+          ) : canInstall ? (
             <button
               type="button"
-              onClick={() => void promptInstall()}
+              onClick={() => void handleInstall()}
               className="mt-3 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
             >
               {t("install.install")}

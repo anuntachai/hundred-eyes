@@ -8,7 +8,13 @@ export function getSupabase(): SupabaseClient | null {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   client ??= createClient(url, key, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      // จำเป็นสำหรับ OAuth (LINE Login) — อ่าน session จาก URL ตอน callback กลับมา
+      detectSessionInUrl: true,
+      flowType: "pkce",
+    },
   });
   return client;
 }

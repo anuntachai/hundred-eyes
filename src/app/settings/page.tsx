@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const { t, locale } = useT();
   const { showToast } = useToast();
   const { permission, enable, heal } = usePushPermission();
-  const { canInstall, isIOS, standalone } = useInstallPrompt();
+  const { canInstall, isIOS, standalone, inAppBrowser } = useInstallPrompt();
   const [name, setName] = useState("");
   const [house, setHouse] = useState("");
   const [saving, setSaving] = useState(false);
@@ -115,7 +115,6 @@ export default function SettingsPage() {
   }
 
   function handleLogout() {
-    if (!window.confirm(t("settings.logoutConfirm"))) return;
     void signOut();
   }
 
@@ -228,15 +227,35 @@ export default function SettingsPage() {
 
           <section className={cardClass}>
             <h2 className="font-semibold">{t("install.install")}</h2>
-            <div className="mt-2">
-              {canInstall ? (
+            <div className="mt-2 text-sm text-slate-600">
+              {standalone ? (
+                <p>{t("install.installed")}</p>
+              ) : inAppBrowser ? (
+                <p>{t("install.openInBrowser")}</p>
+              ) : canInstall ? (
                 <InstallButton className="px-6 py-3 text-base" />
-              ) : isIOS && !standalone ? (
-                <p className="text-sm text-slate-600">{t("install.iosHint")}</p>
+              ) : isIOS ? (
+                <p>{t("install.iosHint")}</p>
               ) : (
-                <p className="text-sm text-slate-400">{t("notif.enabled")}</p>
+                <p>{t("install.manualHint")}</p>
               )}
             </div>
+          </section>
+
+          <section className={cardClass}>
+            <h2 className="font-semibold">{t("settings.addLineOa")}</h2>
+            <p className="mt-1 text-sm text-slate-600">{t("settings.addLineOaHint")}</p>
+            <a
+              href="https://line.me/R/ti/p/@029rnpoj"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#06C755] px-5 py-2 text-sm font-semibold text-white hover:brightness-95"
+            >
+              <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
+                <path d="M12 2.5c-5.24 0-9.5 3.46-9.5 7.74 0 3.83 3.4 7.04 7.99 7.64.31.07.74.2.84.46.1.24.06.6.03.84l-.13.82c-.04.24-.19.94.82.51 1.02-.43 5.48-3.23 7.47-5.53 1.38-1.51 1.98-3.05 1.98-4.74 0-4.28-4.26-7.74-9.5-7.74z" />
+              </svg>
+              {t("settings.addLineOaButton")}
+            </a>
           </section>
 
           <section className={cardClass}>
