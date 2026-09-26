@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildPushPayload } from "./push-texts";
+import { buildLineMessage, isLineConfigured, sendLineAlert, type LineConfig } from "./line";
 
 export interface PushSubRow {
   endpoint: string;
@@ -26,16 +27,21 @@ export interface NotifyDeps {
   sendNotification?: SendNotification;
   env: { publicKey: string; privateKey: string; subject: string };
   now?: Date;
+  // LINE กลุ่มหมู่บ้าน (optional) — ส่งหลัง web-push แบบ best-effort
+  line?: LineConfig;
+  sendLine?: (config: LineConfig, message: Record<string, unknown>) => Promise<{ ok: boolean }>;
+  siteUrl?: string;
 }
 
 export type BroadcastResult =
   | { sent: false }
-  | { sent: true; delivered: number; removed: number; skipped: number };
+  | { sent: true; delivered: number; removed: number; skipped: number; line: "sent" | "skipped" | "failed" };
 
 interface ClaimedReport {
   id: string;
   user_id: string;
   message: string;
+  created_at?: string;
 }
 
 function isDeadEndpoint(reason: unknown): boolean {
@@ -55,7 +61,7 @@ export async function broadcastFloodNotification(reportId: string, deps: NotifyD
     .eq("id", reportId)
     .eq("is_flooded", true)
     .is("flood_notified_at", null)
-    .select("id, user_id, message")
+    .select("id, user_id, message, created_at")
     .maybeSingle();
   const report = claim.data as ClaimedReport | null;
   if (claim.error) throw claim.error;
@@ -102,5 +108,26 @@ export async function broadcastFloodNotification(reportId: string, deps: NotifyD
     deadEndpoints.map((endpoint) => db.from("push_subscriptions").delete().eq("endpoint", endpoint)),
   );
 
-  return { sent: true, delivered, removed: deadEndpoints.length, skipped };
+  // 7. ส่งเข้า LINE กลุ่มหมู่บ้าน (best-effort — ล้มไม่กระทบผลลัพธ์ push)
+  let lineStatus: "sent" | "skipped" | "failed" = "skipped";
+  if (isLineConfigured(deps.line)) {
+    try {
+      const sendLine = deps.sendLine ?? sendLineAlert;
+      const timeText = report.created_at
+        ? new Date(report.created_at).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+        : undefined;
+      const lineMessage = buildLineMessage(
+        reporterName,
+        report.message,
+        `${deps.siteUrl ?? "https://hundred-eyes.vercel.app"}/#report-${report.id}`,
+        timeText,
+      );
+      const lineResult = await sendLine(deps.line as LineConfig, lineMessage);
+      lineStatus = lineResult.ok ? "sent" : "failed";
+    } catch {
+      lineStatus = "failed";
+    }
+  }
+
+  return { sent: true, delivered, removed: deadEndpoints.length, skipped, line: lineStatus };
 }

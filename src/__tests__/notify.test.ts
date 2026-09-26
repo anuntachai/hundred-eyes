@@ -120,7 +120,7 @@ describe("broadcastFloodNotification", () => {
         calls.push({ endpoint: subscription.endpoint, payload, ttl: options.TTL });
       },
     });
-    expect(result).toEqual({ sent: true, delivered: 2, removed: 0, skipped: 1 });
+    expect(result).toEqual({ sent: true, delivered: 2, removed: 0, skipped: 1, line: "skipped" });
     expect(calls).toHaveLength(2);
     const thai = JSON.parse(calls.find((call) => call.endpoint === "https://push/thai")?.payload ?? "{}");
     expect(thai.title).toBe("⚠️ แจ้งเตือนน้ำท่วม");
@@ -146,7 +146,7 @@ describe("broadcastFloodNotification", () => {
         throw Object.assign(new Error("gone"), { statusCode: 410 });
       },
     });
-    expect(result).toEqual({ sent: true, delivered: 0, removed: 1, skipped: 0 });
+    expect(result).toEqual({ sent: true, delivered: 0, removed: 1, skipped: 0, line: "skipped" });
     expect(deletedEndpoints).toEqual(["https://push/dead"]);
   });
 
@@ -175,7 +175,7 @@ describe("broadcastFloodNotification", () => {
       env,
       sendNotification: send,
     });
-    expect(first).toEqual({ sent: true, delivered: 1, removed: 0, skipped: 0 });
+    expect(first).toEqual({ sent: true, delivered: 1, removed: 0, skipped: 0, line: "skipped" });
     expect(replay).toEqual({ sent: false });
     expect(calls).toEqual(["https://push/once"]);
   });
@@ -194,7 +194,69 @@ describe("broadcastFloodNotification", () => {
         throw new Error("network hiccup");
       },
     });
-    expect(result).toEqual({ sent: true, delivered: 0, removed: 0, skipped: 0 });
+    expect(result).toEqual({ sent: true, delivered: 0, removed: 0, skipped: 0, line: "skipped" });
     expect(deletedEndpoints).toHaveLength(0);
+  });
+
+  it("sends a LINE alert after the push broadcast when configured", async () => {
+    const { db } = createMockDb({
+      claim: CLAIM_OK,
+      feed: { data: { reporter_name: "Napa" }, error: null },
+      subs: { data: [sub({ endpoint: "https://push/one", user_id: "user-2" })], error: null },
+    });
+    const lineMessages: Array<Record<string, unknown>> = [];
+    const result = await broadcastFloodNotification("11111111-1111-4111-8111-111111111111", {
+      db,
+      env,
+      sendNotification: async () => {},
+      line: { token: "line-token", groupId: "Cgroup123" },
+      sendLine: async (_config, message) => {
+        lineMessages.push(message as Record<string, unknown>);
+        return { ok: true };
+      },
+      siteUrl: "https://hundred-eyes.vercel.app",
+    });
+    expect(result).toEqual({ sent: true, delivered: 1, removed: 0, skipped: 0, line: "sent" });
+    expect(lineMessages).toHaveLength(1);
+    const altText = String(lineMessages[0].altText ?? "");
+    expect(altText).toContain("Napa รายงาน: น้ำท่วมเข้าบ้านแล้ว");
+    // ลิงก์ต้องเป็น deep link ตรงเข้ารายงานนั้น
+    expect(JSON.stringify(lineMessages[0])).toContain(
+      "https://hundred-eyes.vercel.app/#report-11111111-1111-4111-8111-111111111111",
+    );
+  });
+
+  it("does not send LINE when the claim is lost, and tolerates LINE failure", async () => {
+    const claimLostDb = createMockDb({
+      claim: { data: null, error: null },
+      feed: { data: null, error: null },
+      subs: { data: [], error: null },
+    });
+    let lineCalls = 0;
+    const lost = await broadcastFloodNotification("11111111-1111-4111-8111-111111111111", {
+      db: claimLostDb.db,
+      env,
+      sendLine: async () => {
+        lineCalls += 1;
+        return { ok: true };
+      },
+      line: { token: "t", groupId: "C1" },
+    });
+    expect(lost).toEqual({ sent: false });
+    expect(lineCalls).toBe(0);
+
+    const failDb = createMockDb({
+      claim: CLAIM_OK,
+      feed: { data: { reporter_name: "Napa" }, error: null },
+      subs: { data: [], error: null },
+    });
+    const failed = await broadcastFloodNotification("11111111-1111-4111-8111-111111111111", {
+      db: failDb.db,
+      env,
+      sendNotification: async () => {},
+      sendLine: async () => ({ ok: false, status: 401 }),
+      line: { token: "bad", groupId: "C1" },
+    });
+    expect(failed).toEqual({ sent: true, delivered: 0, removed: 0, skipped: 0, line: "failed" });
   });
 });

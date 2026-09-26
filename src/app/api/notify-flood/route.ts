@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { broadcastFloodNotification } from "@/lib/notify";
+import { getGroupTargets } from "@/lib/line";
 import { isUuid } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -31,6 +32,21 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false },
   });
 
+  // LINE: ส่งทั้งส่วนตัว (broadcast ทุกคนที่เพิ่ม OA — ปิดได้ด้วย LINE_BROADCAST=0)
+  // และทุกกลุ่มที่ webhook เคยจับไว้ + LINE_GROUP_ID จาก env ถ้ามี
+  const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  let line: { token: string; groups?: string[]; groupId?: string; broadcast?: boolean } | undefined;
+  if (lineToken) {
+    const groups = await getGroupTargets(db);
+    const envGroup = process.env.LINE_GROUP_ID;
+    line = {
+      token: lineToken,
+      groups,
+      ...(envGroup ? { groupId: envGroup } : {}),
+      broadcast: process.env.LINE_BROADCAST !== "0",
+    };
+  }
+
   try {
     const result = await broadcastFloodNotification(reportId, {
       db,
@@ -41,6 +57,7 @@ export async function POST(request: NextRequest) {
       },
       sendNotification: (subscription, payload, options) =>
         webpush.sendNotification(subscription, payload, options),
+      line,
     });
     return NextResponse.json(result);
   } catch {

@@ -12,6 +12,7 @@ export function Timeline({
   retry,
   myUserId,
   onDeleted,
+  highlightId,
 }: {
   items: FeedItem[];
   status: "loading" | "ready" | "error";
@@ -20,6 +21,7 @@ export function Timeline({
   retry: () => void;
   myUserId: string;
   onDeleted: (id: string) => void;
+  highlightId?: string | null;
 }) {
   const { t } = useT();
 
@@ -73,7 +75,13 @@ export function Timeline({
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <ReportCard key={item.id} item={item} myUserId={myUserId} onDeleted={onDeleted} />
+        <ReportCard
+          key={item.id}
+          item={item}
+          myUserId={myUserId}
+          onDeleted={onDeleted}
+          highlight={item.id === highlightId}
+        />
       ))}
       {hasMore && (
         <div className="pt-2 text-center">

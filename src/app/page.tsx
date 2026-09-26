@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { FloodBanner } from "@/components/FloodBanner";
 import { FloodWatch } from "@/components/FloodWatch";
@@ -45,6 +45,26 @@ export default function HomePage() {
   const { t } = useT();
   const feed = useFeed(state.status === "ready");
   const activeFlood = useMemo(() => activeFloodReport(feed.items), [feed.items]);
+
+  // deep link จาก LINE: #report-<id> → เลื่อนไปการ์ดนั้นและไฮไลต์ชั่วคราว
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const scrolledForRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const match = /^#report-(.+)$/.exec(window.location.hash);
+    if (match) setHighlightId(match[1]);
+  }, []);
+
+  useEffect(() => {
+    if (!highlightId || scrolledForRef.current === highlightId) return;
+    if (feed.status !== "ready" || !feed.items.some((item) => item.id === highlightId)) return;
+    scrolledForRef.current = highlightId;
+    document
+      .getElementById(`report-${highlightId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightId(null), 5000);
+    return () => clearTimeout(timer);
+  }, [highlightId, feed.status, feed.items]);
 
   if (state.status === "loading") {
     return (
@@ -100,6 +120,7 @@ export default function HomePage() {
             retry={() => void feed.loadInitial()}
             myUserId={userId}
             onDeleted={feed.remove}
+            highlightId={highlightId}
           />
         </section>
       </main>

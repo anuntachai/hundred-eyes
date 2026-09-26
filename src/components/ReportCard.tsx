@@ -13,10 +13,12 @@ export function ReportCard({
   item,
   myUserId,
   onDeleted,
+  highlight,
 }: {
   item: FeedItem;
   myUserId: string;
   onDeleted: (id: string) => void;
+  highlight?: boolean;
 }) {
   const { t, locale } = useT();
   const { showToast } = useToast();
@@ -44,7 +46,9 @@ export function ReportCard({
   return (
     <article
       id={`report-${item.id}`}
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm scroll-mt-20"
+      className={`rounded-xl border p-4 shadow-sm scroll-mt-20 transition-all ${
+        highlight ? "border-primary bg-sky-50 ring-2 ring-primary" : "border-slate-200 bg-white"
+      }`}
     >
       <div className="flex items-center gap-2">
         <span className="font-semibold">{item.reporter_name}</span>
