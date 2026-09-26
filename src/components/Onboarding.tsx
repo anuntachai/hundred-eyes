@@ -26,9 +26,9 @@ export function Onboarding({ onDone }: { hasAuthUser?: boolean; onDone: () => vo
     const houseNumber = validateHouse(house);
     setError(null);
     setBusy(true);
-    const ok = await createAccount({ displayName, houseNumber, locale });
-    if (!ok) {
-      setError(t("error.network"));
+    const result = await createAccount({ displayName, houseNumber, locale });
+    if (!result.ok) {
+      setError(result.nameTaken ? t("error.nameTaken") : t("error.network"));
       setBusy(false);
       return;
     }

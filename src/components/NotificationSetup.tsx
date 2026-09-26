@@ -26,18 +26,23 @@ export function NotificationSetup() {
     setBusy(true);
     const result = await enable(locale);
     setBusy(false);
-    if (result === "error") showToast(t("error.network"), "error");
+    // ให้ feedback ทุกผลลัพธ์ — ไม่มีทางกดแล้วเงียบ
+    if (result === "granted") showToast(t("notif.enabled"), "success");
+    else if (result === "denied") showToast(t("notif.blocked"), "error");
+    else if (result === "unsupported") showToast(t("notif.iosHint"), "error");
+    else showToast(t("error.network"), "error");
   }
 
   return (
     <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-900">
       <p className="font-semibold">{t("notif.enable")}</p>
-      {permission === "denied" ? (
-        <p className="mt-1 text-sm">{t("notif.blocked")}</p>
-      ) : permission === "unsupported" && iosBlocked ? (
+      {permission === "unsupported" && iosBlocked ? (
         <p className="mt-1 text-sm">{t("notif.iosHint")}</p>
       ) : (
         <>
+          {permission === "denied" && (
+            <p className="mt-1 text-sm">{t("notif.blocked")}</p>
+          )}
           {iosBlocked && <p className="mt-1 text-sm">{t("notif.iosHint")}</p>}
           <button
             type="button"
@@ -47,6 +52,9 @@ export function NotificationSetup() {
           >
             {t("notif.enable")}
           </button>
+          {permission === "denied" && (
+            <p className="mt-2 text-xs leading-relaxed">{t("notif.reenableHint")}</p>
+          )}
         </>
       )}
     </div>

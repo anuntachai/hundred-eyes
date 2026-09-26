@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { FloodWatch } from "@/components/FloodWatch";
 import { Onboarding } from "@/components/Onboarding";
@@ -56,7 +57,29 @@ export default function ReportPage() {
       <AppHeader />
       <FloodWatch userId={state.userId} />
       <main className="mx-auto max-w-2xl px-4 pb-10 pt-4">
-        <h1 className="mb-3 text-xl font-bold">{t("report.title")}</h1>
+        <div className="mb-3 flex items-center gap-2">
+          <Link
+            href="/"
+            aria-label={t("common.back")}
+            title={t("common.back")}
+            className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold">{t("report.title")}</h1>
+        </div>
         <ReportForm userId={state.userId} />
       </main>
     </>

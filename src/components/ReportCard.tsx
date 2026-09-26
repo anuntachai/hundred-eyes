@@ -84,6 +84,15 @@ export function ReportCard({
           </button>
         )}
       </div>
+      {item.is_flooded && (
+        <p
+          role="alert"
+          className="mt-2 flex items-center gap-2 rounded-lg bg-danger-bg px-3 py-2 text-sm font-bold text-danger"
+        >
+          <span aria-hidden="true">⚠️</span>
+          {t("report.floodAlert")}
+        </p>
+      )}
       <p className="mt-2 whitespace-pre-wrap break-words">{item.message}</p>
       {item.photos.length > 0 && <PhotoGrid photos={item.photos} onOpen={(i) => setLightbox(i)} />}
       {lightbox !== null && (

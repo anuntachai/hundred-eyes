@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { FloodWatch } from "@/components/FloodWatch";
@@ -92,17 +93,25 @@ export default function SettingsPage() {
     }
     const houseNumber = validateHouse(house);
     setSaving(true);
-    const ok = await saveProfile({ display_name: displayName, house_number: houseNumber, locale });
+    const result = await saveProfile({ display_name: displayName, house_number: houseNumber, locale });
     setSaving(false);
-    showToast(ok ? t("settings.saved") : t("error.network"), ok ? "success" : "error");
-    if (ok) void refresh();
+    if (result.ok) {
+      showToast(t("settings.saved"), "success");
+      void refresh();
+    } else {
+      showToast(result.nameTaken ? t("error.nameTaken") : t("error.network"), "error");
+    }
   }
 
   async function handleEnableNotifications() {
     setEnabling(true);
     const result = await enable(locale);
     setEnabling(false);
-    if (result === "error") showToast(t("error.network"), "error");
+    // ให้ feedback ทุกผลลัพธ์ — ไม่มีทางกดแล้วเงียบ
+    if (result === "granted") showToast(t("notif.enabled"), "success");
+    else if (result === "denied") showToast(t("notif.blocked"), "error");
+    else if (result === "unsupported") showToast(t("notif.iosHint"), "error");
+    else showToast(t("error.network"), "error");
   }
 
   function handleLogout() {
@@ -115,7 +124,29 @@ export default function SettingsPage() {
       <AppHeader />
       <FloodWatch userId={state.userId} />
       <main className="mx-auto max-w-2xl px-4 pb-10 pt-4">
-        <h1 className="mb-3 text-xl font-bold">{t("settings.title")}</h1>
+        <div className="mb-3 flex items-center gap-2">
+          <Link
+            href="/"
+            aria-label={t("common.back")}
+            title={t("common.back")}
+            className="rounded-full border border-slate-200 bg-white p-2 text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold">{t("settings.title")}</h1>
+        </div>
         <div className="space-y-4">
           <form
             onSubmit={(event) => {
@@ -162,10 +193,15 @@ export default function SettingsPage() {
             <h2 className="font-semibold">{t("notif.heading")}</h2>
             <div className="mt-2 text-sm text-slate-600">
               {permission === "granted" && <p>{t("notif.enabled")}</p>}
-              {permission === "denied" && <p>{t("notif.blocked")}</p>}
               {permission === "unsupported" && isIOS && <p>{t("notif.iosHint")}</p>}
-              {permission === "default" && (
+              {(permission === "default" || permission === "denied") && (
                 <>
+                  {permission === "denied" && (
+                    <div className="mb-2">
+                      <p>{t("notif.blocked")}</p>
+                      <p className="mt-1 text-xs leading-relaxed">{t("notif.reenableHint")}</p>
+                    </div>
+                  )}
                   {isIOS && !standalone && <p className="mb-2">{t("notif.iosHint")}</p>}
                   <button
                     type="button"

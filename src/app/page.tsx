@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { FloodBanner } from "@/components/FloodBanner";
 import { FloodWatch } from "@/components/FloodWatch";
+import { InstallBanner } from "@/components/InstallBanner";
 import { NotificationSetup } from "@/components/NotificationSetup";
 import { Onboarding } from "@/components/Onboarding";
 import { Timeline } from "@/components/Timeline";
@@ -86,6 +87,7 @@ export default function HomePage() {
       <AppHeader />
       <FloodWatch userId={userId} />
       <main className="mx-auto max-w-2xl px-4 pb-28 pt-4 sm:pb-10">
+        <InstallBanner />
         {activeFlood && <FloodBanner item={activeFlood} />}
         <NotificationSetup />
         <section>

@@ -31,11 +31,14 @@ export function PhotoPicker({
   const { showToast } = useToast();
   const takeInputRef = useRef<HTMLInputElement>(null);
   const chooseInputRef = useRef<HTMLInputElement>(null);
+  // mirror ล่าสุดสำหรับเช็คจำนวนตอน event กันเลือกรัว ๆ ทะลุลิมิต 6 ภาพ
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
-  async function handleFiles(fileList: FileList) {
-    const files = Array.from(fileList);
+  async function handleFiles(fileList: File[]) {
+    const files = fileList;
     if (files.length === 0) return;
-    const room = MAX_PHOTOS - photos.length;
+    const room = MAX_PHOTOS - photosRef.current.length;
     if (files.length > room) showToast(t("error.photoTooMany"), "error");
     const accepted = files.slice(0, Math.max(0, room));
     if (accepted.length === 0) return;
@@ -96,9 +99,10 @@ export function PhotoPicker({
         capture="environment"
         hidden
         onChange={(event) => {
-          const files = event.target.files;
+          // คัดลอกเป็น array ก่อนเคลียร์ value — FileList เป็น live object ถูกล้างตาม input ทันที
+          const files = Array.from(event.target.files ?? []);
           event.target.value = "";
-          if (files) void handleFiles(files);
+          if (files.length > 0) void handleFiles(files);
         }}
       />
       <input
@@ -108,9 +112,9 @@ export function PhotoPicker({
         multiple
         hidden
         onChange={(event) => {
-          const files = event.target.files;
+          const files = Array.from(event.target.files ?? []);
           event.target.value = "";
-          if (files) void handleFiles(files);
+          if (files.length > 0) void handleFiles(files);
         }}
       />
       {photos.length > 0 && (

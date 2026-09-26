@@ -35,8 +35,22 @@ export async function enablePushNotifications(locale: Locale): Promise<EnablePus
     const session = sessionData?.session;
     if (!session) return "error";
 
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
+    // ลงทะเบียน SW เองแทนการรอ serviceWorker.ready — กันค้างตลอดกาล
+    // ถ้าลงทะเบียนไว้แล้วจะได้ registration เดิม; พร้อม timeout กันห้อย
+    const reg = await Promise.race([
+      navigator.serviceWorker.register("/sw.js").catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]);
+    if (!reg || !reg.active) {
+      const fallback = await Promise.race([
+        navigator.serviceWorker.ready.then((r) => (r.active ? r : null)).catch(() => null),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      if (!fallback) return "error";
+    }
+    const swReg = reg ?? (await navigator.serviceWorker.ready);
+
+    let sub = await swReg.pushManager.getSubscription();
     const json0 = sub?.toJSON() as { keys?: { p256dh?: string; auth?: string } } | undefined;
     if (sub && !json0?.keys?.p256dh) {
       // subscription เก่าไม่มี keys → สร้างใหม่
@@ -44,7 +58,7 @@ export async function enablePushNotifications(locale: Locale): Promise<EnablePus
       sub = null;
     }
     if (!sub) {
-      sub = await reg.pushManager.subscribe({
+      sub = await swReg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
